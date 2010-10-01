@@ -1,0 +1,4 @@
+To run tests:
+
+cd specs/
+rspec *_spec.rb

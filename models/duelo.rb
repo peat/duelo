@@ -105,7 +105,7 @@ class Duelo
 
     # everything validates; create challenge!
     challenge = {
-      :challange => generate_id,
+      :challenge => generate_id,
       :from => req[:from],
       :to => req[:to],
       :skill => req[:skill]
