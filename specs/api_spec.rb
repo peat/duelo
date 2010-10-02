@@ -14,6 +14,11 @@ describe "The API" do
     response['challenge']['challenge'].length.should == 16
   end
 
+  it "should have the proper parameters for a challenge request" do
+    response = request("/challenge")
+    response['status'].should_not == "OK"
+  end
+
   it "should respond correctly to a health request" do
     response = request("/health?key=key") 
     
@@ -30,11 +35,6 @@ describe "The API" do
 
     response = request("/health?key=notkey")
     response.should be_empty
-  end
-
-  it "should have the proper parameters for a challenge request" do
-    response = request("/challenge")
-    response['status'].should_not == "OK"
   end
 
   def server
