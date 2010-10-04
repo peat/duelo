@@ -1,4 +1,5 @@
-require 'open-uri'
+require 'net/http'
+require 'uri'
 require 'json'
 
 RSpec::Matchers.define :be_json do
