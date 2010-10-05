@@ -51,6 +51,8 @@ class Duelo
         http_post_challenge( :from => params['from'], :to => params['to'], :skill => params['skill'] )
       when "post deny"
         http_post_deny( :challenge => params['challenge'] )
+      when "post accept"
+        http_post_accept( :challenge => params['challenge'], :skill => params['skill'] )
       else
         { :status => STATUS_ERROR, :uri => env['REQUEST_URI'], :error => "I don't know how to respond to a #{request.request_method.upcase} for #{request.path}." }
     end
@@ -388,20 +390,37 @@ class Duelo
   #   Inserts a 'history' record into the database.
   #   Sends push notifications to both duelers.
   #
-  def http_get_accept( req )
-    # TODO: validate existance of 'challenge_id'
+  def http_post_accept( req )
+    challenge = get_challenge( req[:challenge] )
+
+    unless challenge
+      return { :status => STATUS_NOT_FOUND, :error => "Could not find challenge (#{req[:challenge]})." }
+    end
+
+    unless skill_exists?( req[:skill] )
+      return { :status => STATUS_NOT_FOUND, :error => "Could not find skill (#{req[:skill]})." }
+    end
+
+    unless character_has_skill?( challenge['to'], req[:skill] )
+      return { :status => STATUS_ERROR, :error => "Character (#{req[:character]}) does not have skill (#{req[:skill]})." }
+    end
+
+    # passed all validations -- do or die!
 
     # delete challenge from database
-    query = { :id => req[:challenge_id] }
-    challenge = @challenges.find( query )
+    query = { :id => req[:challenge] }
     @challenges.remove( query )
 
     # do battle!
-    winner = duel( challenge['from'], challenge['skill'], challenge['to'], req['skill'] )
+    winner = duel( challenge['from'], challenge['skill'], challenge['to'], req[:skill] )
 
     # create history record
     history = {
-      'challenge' => challenge,
+      'challenge' => challenge['id'],
+      'from' => challenge['from'],
+      'from_skill' => challenge['skill'],
+      'to' => challenge['to'],
+      'to_skill' => challenge['skill'],
       'winner' => winner
     }
 
@@ -455,6 +474,10 @@ class Duelo
 
 
   # Record get convenience methods
+  def get_challenge( id )
+    get_record( @challenges, id )
+  end
+
   def get_character( id )
     get_record( @characters, id )
   end
