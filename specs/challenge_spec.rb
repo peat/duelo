@@ -76,7 +76,7 @@ describe "The Challenge API" do
     # check response 
     response['status'].should == 'OK'
     response['result']['status'].should == 'DENIED'
-    response['result']['challenge'].should == challenge['id']
+    response['result']['id'].should == challenge['id']
 
     # check history
     challenge_diff =
@@ -106,11 +106,35 @@ describe "The Challenge API" do
 
     history['status'].should == 'OK'
     [ charA['id'], charB['id'] ].should include( history['result']['winner'] )
-    history['result']['challenge'].should == challenge['id']
+    history['result']['id'].should == challenge['id']
     history['result']['from'].should == charA['id']
     history['result']['from_skill'].should == skillA['id']
     history['result']['to'].should == charB['id']
     history['result']['to_skill'].should == skillA['id']
+  end
+
+
+  it "should respond correctly to a history request" do
+    charA = new_character
+    charB = new_character
+    skillA = new_skill
+    skillB = new_skill
+
+    # create the challenge
+    challenge = request(:post, "/challenge", { :from => charA['id'], :to => charB['id'], :skill => skillA['id'] } )['challenge']
+
+    # accept the challenge
+    history = request(:post, "/accept", { :challenge => challenge['id'], :skill => skillB['id'] } )
+
+    # go get the history for it
+    response = request(:get, "/history", { :challenge => challenge['id'] } )
+
+    response['status'].should == 'OK'
+
+    # compare accept history with recorded history
+    history.each do |k,v|
+      response['history'][k].should == history['result'][k]
+    end
   end
 
 end

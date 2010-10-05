@@ -53,6 +53,8 @@ class Duelo
         http_post_deny( :challenge => params['challenge'] )
       when "post accept"
         http_post_accept( :challenge => params['challenge'], :skill => params['skill'] )
+      when "get history"
+        http_get_history( :challenge => params['challenge'] )
       else
         { :status => STATUS_ERROR, :uri => env['REQUEST_URI'], :error => "I don't know how to respond to a #{request.request_method.upcase} for #{request.path}." }
     end
@@ -359,7 +361,10 @@ class Duelo
 
     # create history record
     history = {
-      :challenge => req[:challenge],
+      :id => challenge['id'],
+      :from => challenge['from'],
+      :to => challenge['to'],
+      :skill => challenge['skill'],
       :status => 'DENIED'
     }
 
@@ -416,12 +421,13 @@ class Duelo
 
     # create history record
     history = {
-      'challenge' => challenge['id'],
+      'id' => challenge['id'],
       'from' => challenge['from'],
       'from_skill' => challenge['skill'],
       'to' => challenge['to'],
       'to_skill' => challenge['skill'],
-      'winner' => winner
+      'winner' => winner,
+      'status' => 'COMPLETED'
     }
 
     # insert history into database
@@ -431,6 +437,31 @@ class Duelo
 
     # respond with success message
     { :status => STATUS_OK, :result => history }
+  end
+
+
+  # Retrieves a history record.
+  #
+  # Expects:
+  #
+  #   :challenge   should be a valid challenge ID
+  #   
+  # Returns:
+  #
+  #   Hash object containing success code and 'history' record.
+  #
+  # Side effects:
+  #
+  #   None
+  #
+  def http_get_history( req )
+
+    history = get_history( req[:challenge] )
+    unless history
+      return { :status => STATUS_NOT_FOUND, :error => "Could not find history (#{req[:challenge]})." }
+    end
+
+    { :status => STATUS_OK, :history => history }
   end
 
 
@@ -468,6 +499,10 @@ class Duelo
     record_exists?( @characters, id )
   end
 
+  def history_exists?( id )
+    record_exists?( @history, id )
+  end
+
   def record_exists?( collection, id )
     get_record( collection, id ).nil? ? false : true
   end
@@ -484,6 +519,10 @@ class Duelo
 
   def get_skill( id )
     get_record( @skills, id )
+  end
+
+  def get_history( id )
+    get_record( @history, id )
   end
 
   def get_record( collection, id )
