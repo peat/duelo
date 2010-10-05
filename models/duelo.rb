@@ -135,7 +135,7 @@ class Duelo
     }
 
     # stash and clean it
-    character = cleanup( @characters.insert( character ) )
+    character = add_character( character )
 
     { :status => STATUS_OK, :character => character }
   end
@@ -170,7 +170,7 @@ class Duelo
     # extract the skills string
     if req[:skills]
       begin
-        skills = req[:skills].split(',').collect { |s| s.strip }
+        skills = req[:skills].split(',').collect { |s| s.strip }.uniq
       rescue => e
         return { :status => STATUS_ERROR, :error => "Expected a comma delimited string for skills (#{req[:skills]})" }
       end
@@ -194,8 +194,8 @@ class Duelo
       character, # only updates the skills field!
     )
 
-    # return success!
-    # ugh, cleanup.
+    # return a canonical copy
+    character = get_character( req[:character] )
     
     { :status => STATUS_OK, :character => character }
   end
@@ -228,7 +228,7 @@ class Duelo
     }
 
     # stash and clean it
-    skill = cleanup( @skills.insert( skill ) )
+    skill = add_skill( skill )
 
     { :status => STATUS_OK, :skill => skill }
   end
@@ -291,7 +291,7 @@ class Duelo
     }
 
     # stash in MongoDB
-    challenge = cleanup( @challenges.insert( challenge ) )
+    challenge = add_challenge( challenge )
 
     # TODO: push notification into queue
 
@@ -331,7 +331,7 @@ class Duelo
     }
 
     # insert history into database
-    history = cleanup( @history.insert( history ) )
+    history = add_history( history )
 
     # TODO: push notifications for results
 
@@ -375,7 +375,7 @@ class Duelo
     }
 
     # insert history into database
-    @history.insert( history )
+    history = add_history( history )
 
     # TODO: push notifications for results
 
@@ -435,8 +435,33 @@ class Duelo
   def get_record( collection, id )
     record = collection.find( 'id' => id ).first
     cleanup(record) unless record.nil? # clean up mongodb artifacts
+
+    record
   end
 
+
+  def add_character( record )
+    insert_record( @characters, record )
+  end
+
+  def add_skill( record )
+    insert_record( @skills, record  )
+  end
+
+  def add_challenge( record )
+    insert_record( @challenges, record  )
+  end
+
+  def add_history( record )
+    insert_record( @history, record  )
+  end
+
+  def insert_record( collection, record )
+    collection.insert( record )
+    cleanup( record )
+
+    record
+  end
 
   # mongo cleaner
   def cleanup( record )

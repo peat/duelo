@@ -20,7 +20,7 @@ describe "The Character API" do
 
     params = {
       :character => c['id'],
-      :skills => [ s['id'] ]
+      :skills => [ s['id'] ].join(',')
     }
 
     response = request( :put, "/character", params )
@@ -42,7 +42,34 @@ describe "The Character API" do
     response['character']['name'].should_not == bad_name
   end
 
-  it "should not allow duplicate skills for a character"
+  it "should allow mulitple skills for a character" do
+    c = new_character
+    sA = new_skill
+    sB = new_skill
+
+    params = { :character => c['id'], :skills => [ sA['id'], sB['id'] ].join(',') }
+
+    response = request( :put, "/character", params )
+
+    response['status'].should == 'OK'
+    response['character']['skills'].should include( sA['id'] )
+    response['character']['skills'].should include( sB['id'] )
+    response['character']['skills'].length.should == 2
+
+  end
+
+  it "should not allow duplicate skills for a character" do
+    c = new_character
+    s = new_skill
+
+    params = { :character => c['id'], :skills => [ s['id'], s['id'], s['id'] ].join(',') }
+
+    response = request( :put, "/character", params )
+
+    response['status'].should == 'OK'
+    response['character']['skills'].should include( s['id'] )
+    response['character']['skills'].length.should == 1
+  end
 
   it "should not allow skills that don't exist to be added to a character"
 
