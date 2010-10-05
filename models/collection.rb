@@ -13,7 +13,7 @@ class Collection
 
 
   # retrieves a record by ID
-  def find( record_id )
+  def []( record_id )
     record = @collection.find( "id" => record_id ).first
     record = self.cleanup( record ) unless record.nil?
     record
@@ -28,7 +28,7 @@ class Collection
 
   # checks to see if a record exists
   def exists?( id )
-    self.find(id).nil? ? false : true
+    self[id].nil? ? false : true
   end
 
 

@@ -139,7 +139,7 @@ class Duelo
     end
 
     # find it
-    character = @characters.find req[:character]
+    character = @characters[ req[:character] ]
 
     if character.nil?
       return { :status => STATUS_NOT_FOUND, :error => "Couldn't find that character (#{req[:character]}).", :request => req }
@@ -178,7 +178,7 @@ class Duelo
     # stash it
     @characters.insert( character )
 
-    character = @characters.find character[:id]
+    character = @characters[ character[:id] ]
 
     { :status => STATUS_OK, :character => character }
   end
@@ -228,14 +228,14 @@ class Duelo
       end
     end
 
-    character = @characters.find req[:character]
+    character = @characters[ req[:character] ]
     character['skills'] = skills
 
     # update the character
     @characters.save( character )
 
     # return a canonical copy
-    character = @characters.find req[:character]
+    character = @characters[ req[:character] ]
     
     { :status => STATUS_OK, :character => character }
   end
@@ -360,7 +360,7 @@ class Duelo
     # TODO: validate existance of 'challenge_id'
 
     # delete challenge from database
-    challenge = @challenges.find( req[:challenge] )
+    challenge = @challenges[ req[:challenge] ]
     @challenges.remove( req[:challenge] )
 
     # create history record
@@ -400,7 +400,7 @@ class Duelo
   #   Sends push notifications to both duelers.
   #
   def http_post_accept( req )
-    challenge = @challenges.find req[:challenge]
+    challenge = @challenges[ req[:challenge] ]
 
     unless challenge
       return { :status => STATUS_NOT_FOUND, :error => "Could not find challenge (#{req[:challenge]})." }
@@ -459,7 +459,7 @@ class Duelo
   #
   def http_get_history( req )
 
-    history = @history.find req[:challenge]
+    history = @history[ req[:challenge] ]
 
     unless history
       return { :status => STATUS_NOT_FOUND, :error => "Could not find history (#{req[:challenge]})." }
