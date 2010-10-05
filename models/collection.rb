@@ -6,7 +6,7 @@ class Collection
 
 
   # adds a record to the collection
-  def insert( record )
+  def <<( record )
     @collection.insert( record )
     self.cleanup( record )
   end

@@ -176,7 +176,7 @@ class Duelo
     }
 
     # stash it
-    @characters.insert( character )
+    @characters << character
 
     character = @characters[ character[:id] ]
 
@@ -268,7 +268,7 @@ class Duelo
     }
 
     # stash and clean it
-    @skills.insert( skill )
+    @skills << skill
 
     { :status => STATUS_OK, :skill => skill }
   end
@@ -331,7 +331,7 @@ class Duelo
     }
 
     # stash in MongoDB
-    @challenges.insert( challenge )
+    @challenges << challenge
 
     # TODO: push notification into queue
 
@@ -373,7 +373,7 @@ class Duelo
     }
 
     # insert history into database
-    @history.insert( history )
+    @history << history
 
     # TODO: push notifications for results
 
@@ -434,7 +434,7 @@ class Duelo
     }
 
     # insert history into database
-    @history.insert( history )
+    @history << history
 
     # TODO: push notifications for results
 
