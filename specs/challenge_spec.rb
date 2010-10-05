@@ -60,4 +60,35 @@ describe "The Challenge API" do
     response['status'].should == 'ERROR'
   end
 
+
+  it "should respond correctly to a deny request" do
+
+    charA = new_character
+    charB = new_character
+    skill = new_skill
+    
+    challenge = request(:post, "/challenge", { :from => charA['id'], :to => charB['id'], :skill => skill['id'] } )['challenge']
+
+    health_before = health_request
+    response = request(:post, "/deny", { :challenge => "#{challenge['id']}" } )
+    health_after = health_request
+
+    # check response 
+    response['status'].should == 'OK'
+    response['result']['status'].should == 'DENIED'
+    response['result']['challenge'].should == challenge['id']
+
+    # check history
+    challenge_diff =
+      health_after['challenge_count'] - 
+      health_before['challenge_count'] 
+
+    history_diff =
+      health_after['history_count'] - 
+      health_before['history_count'] 
+
+    challenge_diff.should == -1
+    history_diff.should == 1
+  end
+
 end
