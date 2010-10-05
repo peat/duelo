@@ -3,8 +3,12 @@ require './helper'
 describe "The API" do
 
   it "should respond correctly to a deny request" do
+
+    charA = new_character
+    charB = new_character
+    skill = new_skill
     
-    challenge = request(:post, "/challenge", { :from => 1234, :to => 6789, :skill => "abcd" } )['challenge']
+    challenge = request(:post, "/challenge", { :from => charA['id'], :to => charB['id'], :skill => skill['id'] } )['challenge']
 
     health_before = health_request
     response = request(:post, "/deny", { :challenge => "#{challenge['id']}" } )
@@ -13,7 +17,7 @@ describe "The API" do
     # check response 
     response['status'].should == 'OK'
     response['result']['status'].should == 'DENIED'
-    response['result']['challenge'].should == challenge['challenge']
+    response['result']['challenge'].should == challenge['id']
 
     # check history
     challenge_diff =
