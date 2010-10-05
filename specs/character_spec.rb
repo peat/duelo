@@ -16,6 +16,7 @@ describe "The Character API" do
 
   it "should get a character" do
     c = new_character
+
     response = request( :get, "/character", { :character => c['id'] } )
 
     response['character']['id'].should == c['id']

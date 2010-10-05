@@ -1,8 +1,13 @@
+$LOAD_PATH << File.dirname(__FILE__)
+
 require 'rubygems'
 require 'uri'
 require 'mongo'
 require 'logger'
 require 'json'
+
+# mongo collection class
+require 'collection'
 
 class Duelo
 
@@ -18,11 +23,12 @@ class Duelo
   STATUS_OK = "OK"
 
   def initialize
-    @db_connection = Mongo::Connection.new.db('duelo')
-    @characters = @db_connection['characters'] 
-    @challenges = @db_connection['challenges']
-    @history = @db_connection['history'] 
-    @skills = @db_connection['skills'] 
+    db = Mongo::Connection.new.db('duelo')
+
+    @characters = Collection.new( db['characters'] )
+    @challenges = Collection.new( db['challenges'] )
+    @history = Collection.new( db['history'] )
+    @skills = Collection.new( db['skills'] )
   end
 
   # Method which Rack executes
@@ -103,7 +109,7 @@ class Duelo
 
     {
       :status => STATUS_OK,
-      :uptime => `uptime`,
+      :uptime => `uptime`.strip,
       :character_count => @characters.count,
       :challenge_count => @challenges.count,
       :skill_count => @skills.count,
@@ -132,8 +138,8 @@ class Duelo
       return { :status => STATUS_ERROR, :error => "Gotta provide a character ID, holmes.", :request => req }
     end
 
-    # stash and clean it
-    character = get_character( req[:character] )
+    # find it
+    character = @characters.find req[:character]
 
     if character.nil?
       return { :status => STATUS_NOT_FOUND, :error => "Couldn't find that character (#{req[:character]}).", :request => req }
@@ -169,8 +175,10 @@ class Duelo
       :skills => [], # no skills at creation
     }
 
-    # stash and clean it
-    character = add_character( character )
+    # stash it
+    @characters.insert( character )
+
+    character = @characters.find character[:id]
 
     { :status => STATUS_OK, :character => character }
   end
@@ -198,7 +206,7 @@ class Duelo
     end
 
     # validate the ID maps to an existing record
-    unless character_exists?( req[:character] )
+    unless @characters.exists?( req[:character] )
       return { :status => STATUS_NOT_FOUND, :error => "Could not find character (#{req[:character]})" }
     end
 
@@ -215,22 +223,19 @@ class Duelo
 
     # verify those skills exist
     skills.each do |s|
-      unless skill_exists?( s )
+      unless @skills.exists?( s )
         return { :status => STATUS_NOT_FOUND, :error => "Couldn't find skill (#{s}).", :request => req }
       end
     end
 
-    character = get_character( req[:character] )
+    character = @characters.find req[:character]
     character['skills'] = skills
 
     # update the character
-    @characters.update( 
-      { 'id' => req[:character] },  # selector
-      character, # only updates the skills field!
-    )
+    @characters.save( character )
 
     # return a canonical copy
-    character = get_character( req[:character] )
+    character = @characters.find req[:character]
     
     { :status => STATUS_OK, :character => character }
   end
@@ -263,7 +268,7 @@ class Duelo
     }
 
     # stash and clean it
-    skill = add_skill( skill )
+    @skills.insert( skill )
 
     { :status => STATUS_OK, :skill => skill }
   end
@@ -299,17 +304,17 @@ class Duelo
     end
 
     # Validate 'from' is a legitimate character
-    unless character_exists?( req[:from] )
+    unless @characters.exists?( req[:from] )
       return { :status => STATUS_NOT_FOUND, :error => "Unknown character ID (#{req[:from]}).", :request => req }
     end
 
     # Validate 'to' is a legitimate character
-    unless character_exists?( req[:to] )
+    unless @characters.exists?( req[:to] )
       return { :status => STATUS_NOT_FOUND, :error => "Unknown character ID (#{req[:to]}).", :request => req }
     end
 
     # Validate 'skill' is a legitimate skill, and owned by 'from' character
-    unless skill_exists?( req[:skill] )
+    unless @skills.exists?( req[:skill] )
       return { :status => STATUS_NOT_FOUND, :error => "Unknown skill ID (#{req[:skill]}).", :request => req }
     end
 
@@ -326,7 +331,7 @@ class Duelo
     }
 
     # stash in MongoDB
-    challenge = add_challenge( challenge )
+    @challenges.insert( challenge )
 
     # TODO: push notification into queue
 
@@ -355,9 +360,8 @@ class Duelo
     # TODO: validate existance of 'challenge_id'
 
     # delete challenge from database
-    query = { :id => req[:challenge] }
-    challenge = @challenges.find( query ).first
-    @challenges.remove( query )
+    challenge = @challenges.find( req[:challenge] )
+    @challenges.remove( req[:challenge] )
 
     # create history record
     history = {
@@ -369,7 +373,7 @@ class Duelo
     }
 
     # insert history into database
-    history = add_history( history )
+    @history.insert( history )
 
     # TODO: push notifications for results
 
@@ -396,13 +400,13 @@ class Duelo
   #   Sends push notifications to both duelers.
   #
   def http_post_accept( req )
-    challenge = get_challenge( req[:challenge] )
+    challenge = @challenges.find req[:challenge]
 
     unless challenge
       return { :status => STATUS_NOT_FOUND, :error => "Could not find challenge (#{req[:challenge]})." }
     end
 
-    unless skill_exists?( req[:skill] )
+    unless @skills.exists?( req[:skill] )
       return { :status => STATUS_NOT_FOUND, :error => "Could not find skill (#{req[:skill]})." }
     end
 
@@ -413,8 +417,7 @@ class Duelo
     # passed all validations -- do or die!
 
     # delete challenge from database
-    query = { :id => req[:challenge] }
-    @challenges.remove( query )
+    @challenges.remove( req[:challenge] )
 
     # do battle!
     winner = duel( challenge['from'], challenge['skill'], challenge['to'], req[:skill] )
@@ -431,7 +434,7 @@ class Duelo
     }
 
     # insert history into database
-    history = add_history( history )
+    @history.insert( history )
 
     # TODO: push notifications for results
 
@@ -456,7 +459,8 @@ class Duelo
   #
   def http_get_history( req )
 
-    history = get_history( req[:challenge] )
+    history = @history.find req[:challenge]
+
     unless history
       return { :status => STATUS_NOT_FOUND, :error => "Could not find history (#{req[:challenge]})." }
     end
@@ -487,78 +491,6 @@ class Duelo
   
   def character_has_skill?( char_id, skill_id )
     true
-  end
-
-
-  # Existence check convenience methods
-  def skill_exists?( id )
-    record_exists?( @skills, id )
-  end
-
-  def character_exists?( id )
-    record_exists?( @characters, id )
-  end
-
-  def history_exists?( id )
-    record_exists?( @history, id )
-  end
-
-  def record_exists?( collection, id )
-    get_record( collection, id ).nil? ? false : true
-  end
-
-
-  # Record get convenience methods
-  def get_challenge( id )
-    get_record( @challenges, id )
-  end
-
-  def get_character( id )
-    get_record( @characters, id )
-  end
-
-  def get_skill( id )
-    get_record( @skills, id )
-  end
-
-  def get_history( id )
-    get_record( @history, id )
-  end
-
-  def get_record( collection, id )
-    record = collection.find( 'id' => id ).first
-    cleanup(record) unless record.nil? # clean up mongodb artifacts
-
-    record
-  end
-
-
-  def add_character( record )
-    insert_record( @characters, record )
-  end
-
-  def add_skill( record )
-    insert_record( @skills, record  )
-  end
-
-  def add_challenge( record )
-    insert_record( @challenges, record  )
-  end
-
-  def add_history( record )
-    insert_record( @history, record  )
-  end
-
-  def insert_record( collection, record )
-    collection.insert( record )
-    cleanup( record )
-
-    record
-  end
-
-  # mongo cleaner
-  def cleanup( record )
-    record.delete(:_id)
   end
 
 end
