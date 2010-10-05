@@ -39,6 +39,8 @@ class Duelo
     response = case request_pattern
       when "get health"
         http_get_health( :key => params['key'] )
+      when "get character"
+        http_get_character( :character => params['character'] )
       when "post character"
         http_post_character( :name => params['name'] )
       when "put character"
@@ -65,11 +67,9 @@ class Duelo
     # add processing time to response
     response[:time] = ((end_time - start_time) * 1000).ceil
 
-    out = [http_code, {'Content-Type' => 'application/json'}, response.to_json ]
+    LOG.debug "Response: #{http_code} #{response.to_json}\n"
 
-    LOG.debug "Response: #{out}\n"
-
-    out
+    [http_code, {'Content-Type' => 'application/json'}, response.to_json ]
   end
 
   def request_pattern_for( request )
@@ -105,6 +105,37 @@ class Duelo
       :skill_count => @skills.count,
       :history_count => @history.count
     }
+  end
+
+
+  # Retrieves a character.
+  #
+  # Expects:
+  # 
+  #   :character  should be a valid ID
+  #
+  # Returns
+  #
+  #   Hash object containing success code and 'character' record.
+  #
+  # Side effects:
+  #
+  #   None.
+  #
+  def http_get_character( req )
+    # validates the name field has data.
+    if req[:character].nil?
+      return { :status => STATUS_ERROR, :error => "Gotta provide a character ID, holmes.", :request => req }
+    end
+
+    # stash and clean it
+    character = get_character( req[:character] )
+
+    if character.nil?
+      return { :status => STATUS_NOT_FOUND, :error => "Couldn't find that character (#{req[:character]}).", :request => req }
+    end
+
+    { :status => STATUS_OK, :character => character }
   end
 
   # Creates a character.

@@ -14,6 +14,14 @@ describe "The Character API" do
   end
 
 
+  it "should get a character" do
+    c = new_character
+    response = request( :get, "/character", { :character => c['id'] } )
+
+    response['character']['id'].should == c['id']
+  end
+
+
   it "should update a character" do
     c = new_character
     s = new_skill
@@ -42,6 +50,7 @@ describe "The Character API" do
     response['character']['name'].should_not == bad_name
   end
 
+
   it "should allow mulitple skills for a character" do
     c = new_character
     sA = new_skill
@@ -58,6 +67,7 @@ describe "The Character API" do
 
   end
 
+
   it "should not allow duplicate skills for a character" do
     c = new_character
     s = new_skill
@@ -71,6 +81,18 @@ describe "The Character API" do
     response['character']['skills'].length.should == 1
   end
 
-  it "should not allow skills that don't exist to be added to a character"
+
+  it "should not allow skills that don't exist to be added to a character" do
+    c = new_character
+
+    params = {
+      :character => c['id'],
+      :skills => 'non-existant-id'
+    }
+
+    response = request( :put, "/character", params )
+
+    response['status'].should == 'NOT FOUND'
+  end
 
 end
