@@ -29,7 +29,18 @@ describe "The Character API" do
     response['character']['skills'].should include( s['id'] )
   end
 
-  it "should not allow you to change a character's name"
+
+  it "should not allow you to change a character's name" do
+    c = new_character
+    bad_name = "Jimmy Bob"
+
+    params = { :character => c['id'], :name => bad_name }
+
+    response = request( :put, "/character", params )
+
+    response['status'].should == 'OK'
+    response['character']['name'].should_not == bad_name
+  end
 
   it "should not allow duplicate skills for a character"
 
