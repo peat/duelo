@@ -14,9 +14,15 @@ class Collection
 
   # retrieves a record by ID
   def []( record_id )
-    record = @collection.find( "id" => record_id ).first
+    record = self.find( 'id' => record_id ).first
     record = self.cleanup( record ) unless record.nil?
     record
+  end
+
+
+  # fetches a cursor for a query
+  def find( query )
+    @collection.find( query )
   end
 
 

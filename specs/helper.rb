@@ -52,6 +52,11 @@ def request( http_method, path, query = {} )
   JSON.parse( res.body )
 end
 
+def new_user
+  user = request( :post, "/user", { :login => "user#{rand}", :password => 'password' } )['user']
+  user.should_not be_nil
+  user
+end
 
 def new_character
   character = request( :post, "/character", { :name => "Valid Character" } )['character']

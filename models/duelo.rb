@@ -5,6 +5,7 @@ require 'uri'
 require 'mongo'
 require 'logger'
 require 'json'
+require 'digest/sha1'
 
 # mongo collection class
 require 'collection'
@@ -25,6 +26,8 @@ class Duelo
   def initialize
     db = Mongo::Connection.new.db('duelo')
 
+    @users = Collection.new( db['users'] )
+    @tokens = Collection.new( db['tokens'] )
     @characters = Collection.new( db['characters'] )
     @challenges = Collection.new( db['challenges'] )
     @history = Collection.new( db['history'] )
@@ -45,6 +48,10 @@ class Duelo
     response = case request_pattern
       when "get health"
         http_get_health( :key => params['key'] )
+      when "post user"
+        http_post_user( :login => params['login'], :password => params['password'] )
+      when "post token"
+        http_post_token( :login => params['login'], :password => params['password'] )
       when "get character"
         http_get_character( :character => params['character'] )
       when "post character"
@@ -110,11 +117,111 @@ class Duelo
     {
       :status => STATUS_OK,
       :uptime => `uptime`.strip,
+      :user_count => @users.count,
       :character_count => @characters.count,
       :challenge_count => @challenges.count,
       :skill_count => @skills.count,
       :history_count => @history.count
     }
+  end
+
+
+  # Creates a user.
+  #
+  # Expects:
+  # 
+  #   :login     should be a string.
+  #   :password  should be a string.
+  #
+  # Returns
+  #
+  #   Hash object containing success code and 'user' record.
+  #
+  # Side effects:
+  #
+  #   Inserts a 'user' record.
+  #
+  def http_post_user( req )
+    # validates there is a login and password field
+    if req[:login].nil? or req[:password].nil?
+      return { :status => STATUS_ERROR, :error => "Login and password required to create a user.", :request => req }
+    end
+
+    # validates the login is unique
+
+    if @users.find( :login => req[:login] ).first
+      return { :status => STATUS_ERROR, :error => "Sorry, you must use a unique login." }
+    end
+
+    salt = generate_id
+    password = encrypt( salt, req[:password] )
+
+    # create the user
+    user = { 
+      :id => generate_id,
+      :login => req[:login],
+      :salt => salt,
+      :password => password,
+      :characters => [], # no skills at creation
+    }
+
+    # stash it
+    @users << user
+
+    # squish the password and salt ...
+    user.delete(:password)
+    user.delete(:salt)
+
+    { :status => STATUS_OK, :user => user }
+  end
+
+
+  # Creates a token.
+  #
+  # Expects:
+  # 
+  #   :login     should be a string.
+  #   :password  should be a string.
+  #
+  # Returns
+  #
+  #   Hash object containing success code and the token.
+  #
+  # Side effects:
+  #
+  #   Inserts a 'token' record.
+  #
+  def http_post_token( req )
+    # validates there is a login and password field
+    if req[:login].nil? or req[:password].nil?
+      return { :status => STATUS_ERROR, :error => "A valid login and password are required to create a token.", :request => req }
+    end
+
+    # password check
+    test_user = @users.find( :login => req[:login] ).first
+    if test_user.nil?
+      return { :status => STATUS_ERROR, :error => "A valid login and password are required to create a token.", :request => req }
+    end
+
+    password = encrypt( test_user[:salt], req[:password] )
+    user = @users.find( :login => req[:login], :password => password ).first
+
+    # handle password failure!
+    if user.nil?
+      return { :status => STATUS_ERROR, :error => "A valid login and password are required to create a token.", :request => req }
+    end
+
+
+    # create the token
+    token = { 
+      :user => user['id'],
+      :token => generate_id
+    }
+
+    # stash it
+    @tokens << token
+
+    { :status => STATUS_OK, :token => token[:token], :user => token[:user] }
   end
 
 
@@ -491,6 +598,11 @@ class Duelo
   
   def character_has_skill?( char_id, skill_id )
     true
+  end
+
+
+  def encrypt( salt, password )
+    Digest::SHA1.hexdigest("#{salt} #{password}")
   end
 
 end
