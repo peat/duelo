@@ -199,11 +199,12 @@ class Duelo
 
     # password check
     test_user = @users.find( :login => req[:login] ).first
+
     if test_user.nil?
       return { :status => STATUS_ERROR, :error => "A valid login and password are required to create a token.", :request => req }
     end
 
-    password = encrypt( test_user[:salt], req[:password] )
+    password = encrypt( test_user['salt'], req[:password] )
     user = @users.find( :login => req[:login], :password => password ).first
 
     # handle password failure!
@@ -602,7 +603,9 @@ class Duelo
 
 
   def encrypt( salt, password )
-    Digest::SHA1.hexdigest("#{salt} #{password}")
+    out = Digest::SHA1.hexdigest("#{salt} #{password}")
+    LOG.debug("ENCRYPTING '#{salt} #{password}' - '#{out}'")   
+    out 
   end
 
 end
